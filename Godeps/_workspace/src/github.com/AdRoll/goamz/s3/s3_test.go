@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/AdRoll/goamz/aws"
-	"github.com/AdRoll/goamz/s3"
-	"github.com/AdRoll/goamz/testutil"
+	"github.com/arvindkandhare/goamz/aws"
+	"github.com/arvindkandhare/goamz/s3"
+	"github.com/arvindkandhare/goamz/testutil"
 	"gopkg.in/check.v1"
 )
 

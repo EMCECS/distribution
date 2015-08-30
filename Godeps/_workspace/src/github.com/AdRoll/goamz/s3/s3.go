@@ -30,7 +30,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AdRoll/goamz/aws"
+	"github.com/arvindkandhare/goamz/aws"
 )
 
 const debug = false

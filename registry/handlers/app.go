@@ -90,6 +90,7 @@ func NewApp(ctx context.Context, configuration configuration.Configuration) *App
 	app.register(v2.RouteNameBlobUpload, blobUploadDispatcher)
 	app.register(v2.RouteNameBlobUploadChunk, blobUploadDispatcher)
 
+	fmt.Printf("Starting to create factory\n");
 	var err error
 	app.driver, err = factory.Create(configuration.Storage.Type(), configuration.Storage.Parameters())
 	if err != nil {
@@ -98,7 +99,9 @@ func NewApp(ctx context.Context, configuration configuration.Configuration) *App
 		// a health check.
 		panic(err)
 	}
-
+	
+	fmt.Printf("Created storage factory\n");
+	
 	purgeConfig := uploadPurgeDefaultConfig()
 	if mc, ok := configuration.Storage["maintenance"]; ok {
 		for k, v := range mc {
@@ -109,18 +112,22 @@ func NewApp(ctx context.Context, configuration configuration.Configuration) *App
 		}
 
 	}
-
+	fmt.Printf("Starting uploaduperger\n");
 	startUploadPurger(app, app.driver, ctxu.GetLogger(app), purgeConfig)
 
+	fmt.Printf("Starting applyStorageMiddleware\n");
 	app.driver, err = applyStorageMiddleware(app.driver, configuration.Middleware["storage"])
 	if err != nil {
 		panic(err)
 	}
 
+	fmt.Printf("Starting configurations\n");
+	
 	app.configureSecret(&configuration)
 	app.configureEvents(&configuration)
 	app.configureRedis(&configuration)
 	app.configureLogHook(&configuration)
+
 
 	options := []storage.RegistryOption{}
 
@@ -154,7 +161,7 @@ func NewApp(ctx context.Context, configuration configuration.Configuration) *App
 	} else {
 		options = append(options, storage.EnableRedirect)
 	}
-
+	fmt.Printf("Configuring caches\n");
 	// configure storage caches
 	if cc, ok := configuration.Storage["cache"]; ok {
 		v, ok := cc["blobdescriptor"]
@@ -198,6 +205,9 @@ func NewApp(ctx context.Context, configuration configuration.Configuration) *App
 		}
 	}
 
+
+	fmt.Printf("Starting applyRegistryMiddleware\n");
+
 	app.registry, err = applyRegistryMiddleware(app.Context, app.registry, configuration.Middleware["registry"])
 	if err != nil {
 		panic(err)
@@ -223,6 +233,8 @@ func NewApp(ctx context.Context, configuration configuration.Configuration) *App
 		app.isCache = true
 		ctxu.GetLogger(app).Info("Registry configured as a proxy cache to ", configuration.Proxy.RemoteURL)
 	}
+
+	fmt.Printf("Created app\n");
 
 	return app
 }
@@ -655,7 +667,7 @@ func (app *App) context(w http.ResponseWriter, r *http.Request) *Context {
 func (app *App) authorized(w http.ResponseWriter, r *http.Request, context *Context) error {
 	ctxu.GetLogger(context).Debug("authorizing request")
 	repo := getName(context)
-
+	fmt.Printf("repo is %s\n",repo);
 	if app.accessController == nil {
 		return nil // access controller is not enabled.
 	}

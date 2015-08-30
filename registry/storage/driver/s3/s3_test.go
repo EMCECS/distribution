@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/AdRoll/goamz/aws"
+	"github.com/arvindkandhare/goamz/aws"
 	"github.com/docker/distribution/context"
 	storagedriver "github.com/docker/distribution/registry/storage/driver"
 	"github.com/docker/distribution/registry/storage/driver/testsuites"
@@ -21,20 +21,26 @@ var s3DriverConstructor func(rootDirectory string) (*Driver, error)
 var skipS3 func() string
 
 func init() {
+
 	accessKey := os.Getenv("AWS_ACCESS_KEY")
 	secretKey := os.Getenv("AWS_SECRET_KEY")
 	bucket := os.Getenv("S3_BUCKET")
 	encrypt := os.Getenv("S3_ENCRYPT")
 	secure := os.Getenv("S3_SECURE")
 	v4auth := os.Getenv("S3_USE_V4_AUTH")
+	
 	region := os.Getenv("AWS_REGION")
+	endpoint := os.Getenv("BUCKET_ENDPOINT")
+	
 	root, err := ioutil.TempDir("", "driver-")
 	if err != nil {
 		panic(err)
 	}
 	defer os.Remove(root)
 
+	
 	s3DriverConstructor = func(rootDirectory string) (*Driver, error) {
+	
 		encryptBool := false
 		if encrypt != "" {
 			encryptBool, err = strconv.ParseBool(encrypt)
@@ -58,6 +64,11 @@ func init() {
 				return nil, err
 			}
 		}
+		
+		endpointStr := ""
+		if endpoint != "" {
+	        endpointStr = endpoint 
+		}
 
 		parameters := DriverParameters{
 			accessKey,
@@ -69,6 +80,7 @@ func init() {
 			v4AuthBool,
 			minChunkSize,
 			rootDirectory,
+			endpointStr,
 		}
 
 		return New(parameters)
@@ -92,16 +104,7 @@ func TestEmptyRootList(t *testing.T) {
 		t.Skip(skipS3())
 	}
 
-	validRoot, err := ioutil.TempDir("", "driver-")
-	if err != nil {
-		t.Fatalf("unexpected error creating temporary directory: %v", err)
-	}
-	defer os.Remove(validRoot)
-
-	rootedDriver, err := s3DriverConstructor(validRoot)
-	if err != nil {
-		t.Fatalf("unexpected error creating rooted driver: %v", err)
-	}
+	
 
 	emptyRootDriver, err := s3DriverConstructor("")
 	if err != nil {
@@ -113,14 +116,14 @@ func TestEmptyRootList(t *testing.T) {
 		t.Fatalf("unexpected error creating slash root driver: %v", err)
 	}
 
-	filename := "/test"
+	filename := "/testarvind"
 	contents := []byte("contents")
 	ctx := context.Background()
-	err = rootedDriver.PutContent(ctx, filename, contents)
+	err = slashRootDriver.PutContent(ctx, filename, contents)
 	if err != nil {
 		t.Fatalf("unexpected error creating content: %v", err)
 	}
-	defer rootedDriver.Delete(ctx, filename)
+	defer slashRootDriver.Delete(ctx, filename)
 
 	keys, err := emptyRootDriver.List(ctx, "/")
 	for _, path := range keys {

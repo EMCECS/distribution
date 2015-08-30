@@ -22,8 +22,8 @@ storage:
     delete:
       enabled: true
     cache:
-        blobdescriptor: redis
-    filesystem:
+        layerinfo: inmemory
+    s3:
         rootdirectory: /var/lib/registry
     maintenance:
         uploadpurging:

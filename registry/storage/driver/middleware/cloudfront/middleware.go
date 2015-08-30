@@ -10,7 +10,7 @@ import (
 	"io/ioutil"
 	"time"
 
-	"github.com/AdRoll/goamz/cloudfront"
+	"github.com/arvindkandhare/goamz/cloudfront"
 	"github.com/docker/distribution/context"
 	storagedriver "github.com/docker/distribution/registry/storage/driver"
 	storagemiddleware "github.com/docker/distribution/registry/storage/driver/middleware"

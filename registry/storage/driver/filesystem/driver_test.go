@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"fmt"
 
 	storagedriver "github.com/docker/distribution/registry/storage/driver"
 	"github.com/docker/distribution/registry/storage/driver/testsuites"
@@ -14,6 +15,7 @@ import (
 func Test(t *testing.T) { TestingT(t) }
 
 func init() {
+	fmt.Printf("I AM HERE");
 	root, err := ioutil.TempDir("", "driver-")
 	if err != nil {
 		panic(err)

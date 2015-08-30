@@ -1,7 +1,7 @@
 // Package s3 provides a storagedriver.StorageDriver implementation to
 // store blobs in Amazon S3 cloud storage.
 //
-// This package leverages the AdRoll/goamz client library for interfacing with
+// This package leverages the arvindkandhare/goamz client library for interfacing with
 // s3.
 //
 // Because s3 is a key, value store the Stat call does not support last modification
@@ -20,14 +20,15 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/AdRoll/goamz/aws"
-	"github.com/AdRoll/goamz/s3"
+	"github.com/arvindkandhare/goamz/aws"
+	"github.com/arvindkandhare/goamz/s3"
 	"github.com/Sirupsen/logrus"
 
 	"github.com/docker/distribution/context"
@@ -58,6 +59,7 @@ type DriverParameters struct {
 	V4Auth        bool
 	ChunkSize     int64
 	RootDirectory string
+	customURl     string
 }
 
 func init() {
@@ -105,16 +107,18 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 	// be summoned when GetAuth is called)
 	accessKey, ok := parameters["accesskey"]
 	if !ok {
-		accessKey = ""
+		accessKey = os.Getenv("AWS_ACCESS_KEY")
+	
 	}
 	secretKey, ok := parameters["secretkey"]
 	if !ok {
-		secretKey = ""
+		secretKey = os.Getenv("AWS_SECRET_KEY")
 	}
 
 	regionName, ok := parameters["region"]
 	if !ok || fmt.Sprint(regionName) == "" {
-		return nil, fmt.Errorf("No region parameter provided")
+		//return nil, fmt.Errorf("No region parameter provided")
+		regionName = os.Getenv("AWS_REGION") 
 	}
 	region := aws.GetRegion(fmt.Sprint(regionName))
 	if region.Name == "" {
@@ -123,7 +127,7 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 
 	bucket, ok := parameters["bucket"]
 	if !ok || fmt.Sprint(bucket) == "" {
-		return nil, fmt.Errorf("No bucket parameter provided")
+		bucket = os.Getenv("AWS_BUCKET")
 	}
 
 	encryptBool := false
@@ -135,7 +139,7 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 		}
 	}
 
-	secureBool := true
+	secureBool := false
 	secure, ok := parameters["secure"]
 	if ok {
 		secureBool, ok = secure.(bool)
@@ -151,6 +155,19 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 		if !ok {
 			return nil, fmt.Errorf("The v4auth parameter should be a boolean")
 		}
+	}
+	
+	customURlstr := ""
+	if region.Name == "Custom" {
+	   customURl, ok := parameters["customEndpoint"]
+	   if ok {
+		  customURlstr, ok = customURl.(string)
+		  if customURlstr == "" {
+	   	     customURlstr = os.Getenv("BUCKET_ENDPOINT")
+	   	  }
+		  region.EC2Endpoint = customURlstr
+		  region.S3Endpoint = customURlstr
+	   }
 	}
 
 	chunkSize := int64(defaultChunkSize)
@@ -191,8 +208,9 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 		v4AuthBool,
 		chunkSize,
 		fmt.Sprint(rootDirectory),
+		customURlstr,
 	}
-
+	fmt.Printf("Creating new S3 Driver\n");
 	return New(params)
 }
 
@@ -207,10 +225,17 @@ func New(params DriverParameters) (*Driver, error) {
 	if !params.Secure {
 		params.Region.S3Endpoint = strings.Replace(params.Region.S3Endpoint, "https", "http", 1)
 	}
-
+	if params.Region.Name == "Custom" {	
+		params.Region.S3Endpoint = params.customURl;
+		if params.Region.S3Endpoint == "" {
+	       params.Region.S3Endpoint = os.Getenv("BUCKET_ENDPOINT")
+		}
+	}
+	
 	s3obj := s3.New(auth, params.Region)
 	bucket := s3obj.Bucket(params.Bucket)
-
+	
+	
 	if params.V4Auth {
 		s3obj.Signature = aws.V4Signature
 	} else {
@@ -219,11 +244,17 @@ func New(params DriverParameters) (*Driver, error) {
 		}
 	}
 
+	fmt.Printf("Trying to list %s, on bucket %s \n",params.RootDirectory,params.Bucket);
+	fmt.Printf("Aws is  %v, bucket is %v \n",s3obj,bucket);
+
 	// Validate that the given credentials have at least read permissions in the
 	// given bucket scope.
 	if _, err := bucket.List(strings.TrimRight(params.RootDirectory, "/"), "", "", 1); err != nil {
 		return nil, err
 	}
+    
+	fmt.Printf("Done listing \n");
+
 
 	// TODO Currently multipart uploads have no timestamps, so this would be unwise
 	// if you initiated a new s3driver while another one is running on the same bucket.
@@ -314,11 +345,12 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 	var part s3.Part
 	done := make(chan struct{}) // stopgap to free up waiting goroutines
 
+	fmt.Printf("Calling initmulti \n");
 	multi, err := d.Bucket.InitMulti(d.s3Path(path), d.getContentType(), getPermissions(), d.getOptions())
 	if err != nil {
 		return 0, err
-	}
-
+	}	
+	fmt.Printf(" initmulti successful\n");
 	buf := d.getbuf()
 
 	// We never want to leave a dangling multipart upload, our only consistent state is
@@ -409,7 +441,7 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 			// covered by the silly defer below. The other aspect is the s3
 			// retry backoff to deal with RequestTimeout errors. Even though
 			// the underlying s3 library should handle it, it doesn't seem to
-			// be part of the shouldRetry function (see AdRoll/goamz/s3).
+			// be part of the shouldRetry function (see arvindkandhare/goamz/s3).
 			defer func() {
 				select {
 				case putErrChan <- nil: // for some reason, we do this no matter what.
@@ -427,6 +459,7 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 
 		loop:
 			for retries := 0; retries < 5; retries++ {
+				fmt.Printf("Trying to put part %d\n",int(partNumber)); 
 				part, err = multi.PutPart(int(partNumber), bytes.NewReader(buf[0:int64(bytesRead)+from]))
 				if err == nil {
 					break // success!
