@@ -30,6 +30,9 @@ storage:
             enabled: false
 http:
     addr: :5000
+    tls:
+        certificate: /host/certs/domain.crt
+        key:         /host/certs/domain.key
     debug:
         addr: localhost:5001
     headers:

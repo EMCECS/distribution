@@ -59,7 +59,7 @@ type DriverParameters struct {
 	V4Auth        bool
 	ChunkSize     int64
 	RootDirectory string
-	customURl     string
+	customURL     string
 }
 
 func init() {
@@ -159,9 +159,9 @@ func FromParameters(parameters map[string]interface{}) (*Driver, error) {
 	
 	customURlstr := ""
 	if region.Name == "Custom" {
-	   customURl, ok := parameters["customEndpoint"]
+	   customURL, ok := parameters["customEndpoint"]
 	   if ok {
-		  customURlstr, ok = customURl.(string)
+		  customURlstr, ok = customURL.(string)
 		  if customURlstr == "" {
 	   	     customURlstr = os.Getenv("BUCKET_ENDPOINT")
 	   	  }
@@ -226,7 +226,7 @@ func New(params DriverParameters) (*Driver, error) {
 		params.Region.S3Endpoint = strings.Replace(params.Region.S3Endpoint, "https", "http", 1)
 	}
 	if params.Region.Name == "Custom" {	
-		params.Region.S3Endpoint = params.customURl;
+		params.Region.S3Endpoint = params.customURL;
 		if params.Region.S3Endpoint == "" {
 	       params.Region.S3Endpoint = os.Getenv("BUCKET_ENDPOINT")
 		}
@@ -350,7 +350,7 @@ func (d *driver) WriteStream(ctx context.Context, path string, offset int64, rea
 	if err != nil {
 		return 0, err
 	}	
-	fmt.Printf(" initmulti successful\n");
+	fmt.Printf(" initmulti successful %v\n",multi);
 	buf := d.getbuf()
 
 	// We never want to leave a dangling multipart upload, our only consistent state is

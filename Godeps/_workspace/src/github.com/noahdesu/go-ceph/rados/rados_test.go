@@ -307,7 +307,43 @@ func TestReadWrite(t *testing.T) {
 	assert.Equal(t, n_out, len(bytes_in))
 	assert.Equal(t, bytes_in, bytes_out)
 
+	bytes_in = []byte("input another data")
+	err = pool.WriteFull("obj", bytes_in)
+	assert.NoError(t, err)
+
+	bytes_out = make([]byte, len(bytes_in))
+	n_out, err = pool.Read("obj", bytes_out, 0)
+
+	assert.Equal(t, n_out, len(bytes_in))
+	assert.Equal(t, bytes_in, bytes_out)
+
 	pool.Destroy()
+	conn.Shutdown()
+}
+
+func TestNotFound(t *testing.T) {
+	conn, _ := rados.NewConn()
+	conn.ReadDefaultConfigFile()
+	conn.Connect()
+
+	// make pool
+	pool_name := GetUUID()
+	err := conn.MakePool(pool_name)
+	assert.NoError(t, err)
+
+	pool, err := conn.OpenIOContext(pool_name)
+	assert.NoError(t, err)
+
+	size := 128
+	bytes_out := make([]byte, size)
+	_, err = pool.Read("obj", bytes_out, 0)
+	assert.Equal(t, err, rados.RadosErrorNotFound)
+
+	err = pool.Delete("obj")
+	assert.Equal(t, err, rados.RadosErrorNotFound)
+
+	pool.Destroy()
+	conn.Shutdown()
 }
 
 func TestObjectStat(t *testing.T) {
@@ -466,6 +502,11 @@ func TestNewConnWithUser(t *testing.T) {
 	assert.Equal(t, err, nil)
 }
 
+func TestNewConnWithClusterAndUser(t *testing.T) {
+	_, err := rados.NewConnWithClusterAndUser("ceph", "client.admin")
+	assert.Equal(t, err, nil)
+}
+
 func TestReadWriteXattr(t *testing.T) {
 	conn, _ := rados.NewConn()
 	conn.ReadDefaultConfigFile()
@@ -596,10 +637,10 @@ func TestReadWriteOmap(t *testing.T) {
 
 	// Set
 	orig := map[string][]byte{
-	    "key1": []byte("value1"),
-	    "key2": []byte("value2"),
-	    "prefixed-key3": []byte("value3"),
-	    "empty": []byte(""),
+		"key1":          []byte("value1"),
+		"key2":          []byte("value2"),
+		"prefixed-key3": []byte("value3"),
+		"empty":         []byte(""),
 	}
 
 	err = pool.SetOmap("obj", orig)
@@ -619,17 +660,17 @@ func TestReadWriteOmap(t *testing.T) {
 	assert.Equal(t, 0, len(remaining))
 
 	// Get (with a fixed number of keys)
-	fetched, err := pool.GetOmapValues("obj", "",  "", 4)
+	fetched, err := pool.GetOmapValues("obj", "", "", 4)
 	assert.NoError(t, err)
 	assert.Equal(t, orig, fetched)
 
 	// Get All (with an iterator size bigger than the map size)
-	fetched, err = pool.GetAllOmapValues("obj", "",  "", 100)
+	fetched, err = pool.GetAllOmapValues("obj", "", "", 100)
 	assert.NoError(t, err)
 	assert.Equal(t, orig, fetched)
 
 	// Get All (with an iterator size smaller than the map size)
-	fetched, err = pool.GetAllOmapValues("obj", "",  "", 1)
+	fetched, err = pool.GetAllOmapValues("obj", "", "", 1)
 	assert.NoError(t, err)
 	assert.Equal(t, orig, fetched)
 
@@ -637,18 +678,18 @@ func TestReadWriteOmap(t *testing.T) {
 	err = pool.RmOmapKeys("obj", []string{"key1", "prefixed-key3"})
 	assert.NoError(t, err)
 
-	fetched, err = pool.GetOmapValues("obj", "",  "", 4)
+	fetched, err = pool.GetOmapValues("obj", "", "", 4)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string][]byte{
-	    "key2": []byte("value2"),
-	    "empty": []byte(""),
+		"key2":  []byte("value2"),
+		"empty": []byte(""),
 	}, fetched)
 
 	// Clear
 	err = pool.CleanOmap("obj")
 	assert.NoError(t, err)
 
-	fetched, err = pool.GetOmapValues("obj", "",  "", 4)
+	fetched, err = pool.GetOmapValues("obj", "", "", 4)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string][]byte{}, fetched)
 
@@ -668,9 +709,9 @@ func TestReadFilterOmap(t *testing.T) {
 	assert.NoError(t, err)
 
 	orig := map[string][]byte{
-	    "key1": []byte("value1"),
-	    "prefixed-key3": []byte("value3"),
-	    "key2": []byte("value2"),
+		"key1":          []byte("value1"),
+		"prefixed-key3": []byte("value3"),
+		"key2":          []byte("value2"),
 	}
 
 	err = pool.SetOmap("obj", orig)
@@ -680,24 +721,23 @@ func TestReadFilterOmap(t *testing.T) {
 	fetched, err := pool.GetOmapValues("obj", "", "prefixed", 4)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string][]byte{
-	    "prefixed-key3": []byte("value3"),
+		"prefixed-key3": []byte("value3"),
 	}, fetched)
 
 	// "start_after" a key
 	fetched, err = pool.GetOmapValues("obj", "key1", "", 4)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string][]byte{
-	    "prefixed-key3": []byte("value3"),
-	    "key2": []byte("value2"),
+		"prefixed-key3": []byte("value3"),
+		"key2":          []byte("value2"),
 	}, fetched)
 
 	// maxReturn
 	fetched, err = pool.GetOmapValues("obj", "", "key", 1)
 	assert.NoError(t, err)
 	assert.Equal(t, map[string][]byte{
-	    "key1": []byte("value1"),
+		"key1": []byte("value1"),
 	}, fetched)
 
 	pool.Destroy()
 }
-

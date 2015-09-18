@@ -4,8 +4,6 @@ RUN apt-get update && \
     apt-get install -y librados-dev apache2-utils && \
     rm -rf /var/lib/apt/lists/*
 
-RUN go get github.com/arvindkandhare/goamz/aws
-RUN go get github.com/arvindkandhare/goamz/s3
 
 ENV DISTRIBUTION_DIR /go/src/github.com/docker/distribution
 ENV GOPATH $DISTRIBUTION_DIR/Godeps/_workspace:$GOPATH

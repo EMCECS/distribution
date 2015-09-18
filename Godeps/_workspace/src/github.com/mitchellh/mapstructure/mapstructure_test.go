@@ -17,6 +17,10 @@ type Basic struct {
 	Vdata   interface{}
 }
 
+type BasicSquash struct {
+	Test Basic `mapstructure:",squash"`
+}
+
 type Embedded struct {
 	Basic
 	Vunique string
@@ -155,6 +159,47 @@ func TestBasic_IntWithFloat(t *testing.T) {
 	err := Decode(input, &result)
 	if err != nil {
 		t.Fatalf("got an err: %s", err)
+	}
+}
+
+func TestBasic_Merge(t *testing.T) {
+	t.Parallel()
+
+	input := map[string]interface{}{
+		"vint": 42,
+	}
+
+	var result Basic
+	result.Vuint = 100
+	err := Decode(input, &result)
+	if err != nil {
+		t.Fatalf("got an err: %s", err)
+	}
+
+	expected := Basic{
+		Vint:  42,
+		Vuint: 100,
+	}
+	if !reflect.DeepEqual(result, expected) {
+		t.Fatalf("bad: %#v", result)
+	}
+}
+
+func TestDecode_BasicSquash(t *testing.T) {
+	t.Parallel()
+
+	input := map[string]interface{}{
+		"vstring": "foo",
+	}
+
+	var result BasicSquash
+	err := Decode(input, &result)
+	if err != nil {
+		t.Fatalf("got an err: %s", err.Error())
+	}
+
+	if result.Test.Vstring != "foo" {
+		t.Errorf("vstring value should be 'foo': %#v", result.Test.Vstring)
 	}
 }
 

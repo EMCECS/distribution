@@ -117,19 +117,6 @@ func (base *Base) Stat(ctx context.Context, path string) (storagedriver.FileInfo
 
 	return base.StorageDriver.Stat(ctx, path)
 }
-/*
-// List wraps List of underlying storage driver.
-func (base *Base) List(ctx context.Context, path string) ([]string, error) {
-	ctx, done := context.WithTrace(ctx)
-	defer done("%s.List(%q)", base.Name(), path)
-
-	if !storagedriver.PathRegexp.MatchString(path) && path != "/" {
-		return nil, storagedriver.InvalidPathError{Path: path}
-	}
-
-	return base.StorageDriver.List(ctx, path)
-}
-*/
 // Move wraps Move of underlying storage driver.
 func (base *Base) Move(ctx context.Context, sourcePath string, destPath string) error {
 	ctx, done := context.WithTrace(ctx)
