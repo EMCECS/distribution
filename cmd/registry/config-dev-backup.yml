@@ -22,17 +22,16 @@ storage:
     delete:
       enabled: true
     cache:
-        layerinfo: inmemory
-    s3:
+    filesystem:
         rootdirectory: /var/lib/registry
     maintenance:
         uploadpurging:
             enabled: false
+
 http:
-    addr: :5000
-#    tls:
-#        certificate: /host/certs/domain.crt
-#        key:         /host/certs/domain.key
+    addr:        localhost:5000
+    certificate: /host/certs/domain.crt
+    key:         /host/certs/domain.key
     debug:
         addr: localhost:5001
     headers:
